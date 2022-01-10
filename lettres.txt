@@ -1,0 +1,651 @@
+;*************************************************************************************** 
+; Auteur:     Thuc-An Truong
+;
+; Programme:  LETTRES
+;
+;        Ce programme, avec l'emploi de tableaux et de sous-programmes, recherche
+;        les voyelles et les consonnes les plus utilisees parmi une chaine de 
+;        caracteres entree par l'utilisateur et calcule le pourcentage avec
+;        decimales que representent les voyelles par rapport aux lettres entrees.
+;
+;***************************************************************************************
+
+deroul:  CALL    intro
+bclDer:  CALL    sollicit 
+         CALL    calculer 
+         CALL    resultat 
+         CALL    reinit 
+         BR      bclDer      ;recommence le programme
+
+;
+;Affiche le message de bienvenue au programme
+;        
+intro:   STRO    msgBvn,d
+         RET0    
+
+;
+;Sollicite et valide les caracteres entres par l'utilisateur
+;         
+sollicit:STRO    entete,d
+         STRO    msgSol,d
+         LDA     positCar,d
+lireCh:  CHARI   car,d
+         ADDA    1,i
+         STA     positCar,d 
+         LDX     avCar,d 
+         CPX     '\n',i      ;marque la fin de la chaine de caracteres
+         BREQ    finCh 
+         ORX     32,i        ;necessaire pour considerer la lettre majuscule 
+         CPX     'a',i       ;valide l'existence d'une lettre
+         BRLT    lireCh 
+         CPX     'z',i 
+         BRGT    lireCh
+         CALL    cptLettr
+         BR      lireCh
+finCh:   CPA     1,i
+         BREQ    fin
+         RET0 
+
+;
+;Accumule chacune des lettres entrees
+;  
+cptLettr:SUBX    'a',i       ;calcule l'index correspondant a la lettre
+         ASLX         
+         LDA     tabCptL,x   
+         ADDA    1,i         ;compte la lettre
+         STA     tabCptL,x   
+         LDA     totLettr,d  
+         ADDA    1,i         ;compte le nombre de lettres
+         STA     totLettr,d
+         RET0
+
+;
+;Calcule les voyelles et les consonnes separement et 
+;valide le calcul du pourcentage des voyelles
+;
+calculer:LDA     totLettr,d
+         CPA     0,i         ;valide l'existence de lettres
+         BREQ    finCalc
+         CALL    lireVoy
+         CALL    lireCons
+         CALL    calcPour 
+finCalc: RET0
+
+;
+;Prend les index correspondant aux voyelles
+;pour determiner le nombre le plus utilise de voyelles
+;
+lireVoy: LDX     index,d
+         LDA     tabIndV,x
+         STA     indLettr,d 
+         CALL    calcVoy 
+         LDX     index,d 
+         ADDX    2,i         ;index suivant du tableau
+         STX     index,d 
+         CPX     10,i        ;fin du tableau
+         BRLE    lireVoy
+         CALL    reinInd
+         RET0
+
+;
+;Determine le nombre le plus utilise de voyelles
+;
+calcVoy: LDX     indLettr,d 
+         LDA     tabCptL,x
+         ADDA    totVoy,d    ;compte le nombre de voyelles 
+         STA     totVoy,d
+         LDA     tabCptL,x
+         CPA     0,i         ;valide l'existence de la voyelle
+         BREQ    voySuiv
+         CPA     maxVoy,d
+         BRLT    voySuiv
+         BREQ    cptMaxV 
+         STA     maxVoy,d
+         LDA     1,i         ;recommence le compteur de nombre de voyelles uniques
+         STA     nbVoy,d 
+         BR      voySuiv
+cptMaxV: LDA     nbVoy,d
+         ADDA    1,i         ;compte le nombre de voyelles uniques
+         STA     nbVoy,d
+voySuiv: RET0   
+
+;
+;Prend les index correspondant aux consonnes
+;pour determiner le nombre le plus utilise de consonnes
+;
+lireCons:LDX     index,d
+         LDA     tabIndC,x 
+         STA     indLettr,d 
+         CALL    calcCons 
+         LDX     index,d 
+         ADDX    2,i         ;index suivant du tableau
+         STX     index,d 
+         CPX     38,i        ;fin du tableau
+         BRLE    lireCons
+         CALL    reinInd
+         RET0
+
+;
+;Determine le nombre le plus utilise de consonnes
+;
+calcCons:LDX     indLettr,d 
+         LDA     tabCptL,x 
+         CPA     0,i         ;valide l'existence de la consonne
+         BREQ    consSuiv 
+         CPA     maxCons,d
+         BRLT    consSuiv 
+         BREQ    cptMaxC 
+         STA     maxCons,d
+         LDA     1,i         ;recommence le compteur de nombre de consonnes uniques
+         STA     nbCons,d  
+         BR      consSuiv 
+cptMaxC: LDA     nbCons,d
+         ADDA    1,i         ;compte le nombre de consonnes uniques
+         STA     nbCons,d
+consSuiv:RET0  
+
+;
+;Calcule le pourcentage des voyelles par rapport aux lettres entrees
+;
+calcPour:LDA     totVoy,d
+         STA     nombre,d
+         CALL    mult100     ;necessaire pour obtenir la partie entiere
+         CALL    divLettr
+         LDA     quotient,d
+         STA     entPourc,d
+         CALL    reinQuot         
+         LDA     reste,d
+         STA     nombre,d
+         CALL    mult100     ;necessaire pour obtenir la partie decimale en entier
+         CALL    divLettr
+         LDA     quotient,d
+         STA     decPourc,d
+         CALL    arrDec 
+         RET0
+
+;
+;Multiplie le nombre par 100 : "((((((2*2)+1)*2)*2)+1+1+1+1+1)*2)*2"
+;
+mult100: LDA     nombre,d
+         ASLA                ;*2
+         ASLA                ;*4
+         ADDA    nombre,d    ;*5
+         ASLA                ;*10
+         ASLA                ;*20
+         ADDA    nombre,d    ;*21
+         ADDA    nombre,d    ;*22
+         ADDA    nombre,d    ;*23
+         ADDA    nombre,d    ;*24
+         ADDA    nombre,d    ;*25
+         ASLA                ;*50
+         ASLA                ;*100
+         STA     nombre,d
+         RET0  
+
+;
+;Divise le nombre par le nombre de lettres entrees
+;
+divLettr:LDA     nombre,d
+         CPA     totLettr,d  ;division entiere
+         BRLT    finDiv      
+         SUBA    totLettr,d  ;diviseur
+         STA     nombre,d    ;reste
+         LDA     quotient,d
+         ADDA    1,i
+         STA     quotient,d
+         BR      divLettr 
+finDiv:  STA     reste,d
+         RET0
+
+;
+;Arrondit la partie decimale
+;
+arrDec:  LDA     reste,d
+         ASLA                ;necessaire pour comparer sur une base paire
+         CPA     totLettr,d
+         BRLT    finArrD 
+         LDA     decPourc,d
+         ADDA    1,i         ;arrondir a l'entier superieur
+         STA     decPourc,d 
+finArrD: RET0
+
+;
+;Determine l'affichage du resultat
+;
+resultat:CALL    cprMaxVC 
+         BREQ    egalVC
+         BRGT    ordreVC
+         BRLT    ordreCV
+suiteRes:CALL    affPourc
+         RET0
+
+;
+;Compare le nombre le plus utilise de voyelles et de consonnes
+;
+cprMaxVC:LDA     maxVoy,d
+         CPA     maxCons,d
+         RET0
+
+;
+;Determine l'affichage
+;lorsque le nombre le plus utilise de voyelles et de consonnes sont egaux
+;
+egalVC:  LDA     nbVoy,d
+         CPA     0,i         ;valide l'existence de voyelles
+         BREQ    aucOcc
+         LDA     maxVoy,d
+         STA     occAff,d 
+         CALL    voyVC
+         CHARO   '"',i
+         STRO    msgMeme,d
+         CALL    consVC
+         STRO    msgOccs3,d
+         CHARO   '.',i
+         BR      finEgal
+aucOcc:  STRO    msgAucCV,d 
+finEgal: BR      suiteRes
+
+;
+;Determine l'affichage 
+;lorsque le nombre le plus utilise de voyelles est superieur a celui des consonnes
+;
+ordreVC: LDA     maxVoy,d
+         LDX     maxCons,d
+         STA     occAff,d 
+         STX     repAff,d 
+         CALL    voyVC
+         STRO    msgDiff,d
+         CALL    consVC
+         BR      suiteRes
+
+;
+;Determine l'affichage selon le nombre de voyelles
+;lorsque le nombre le plus utilise de voyelles et de consonnes sont egaux et
+;lorsque le nombre le plus utilise de voyelles est superieur a celui des consonnes
+;
+voyVC:   LDA     maxVoy,d
+         STA     maxAff,d 
+         CALL    affOcc
+         LDA     nbVoy,d
+         CPA     1,i         ;valide l'existence d'une ou de plusieurs voyelles
+         BRGT    voysVC 
+         STRO    msgVoy,d
+         CALL    affVoy 
+         CALL    cprMaxVC 
+         BREQ    suiteVC 
+         STRO    msgOcc3,d
+         BR      suiteVC        
+voysVC:  STRO    msgVoys,d
+         CALL    affVoy
+         CALL    cprMaxVC 
+         BREQ    suiteVC 
+         STRO    msgOccs3,d
+         STRO    msgVirg,d
+suiteVC: RET0      
+
+;
+;Determine l'affichage selon le nombre de consonnes
+;lorsque le nombre le plus utilise de voyelles est superieur a celui des consonnes
+;
+consVC:  LDA     maxCons,d
+         STA     maxAff,d 
+         LDA     nbCons,d
+         CPA     0,i         ;valide l'existence de consonnes
+         BREQ    aucCons
+         CPA     1,i         ;valide l'existence d'une ou de plusieurs consonnes
+         BRGT    conssVC 
+         STRO    msgCons,d
+         CALL    affCons 
+         CALL    cprMaxVC 
+         BREQ    finVC 
+         STRO    msgRep1,d 
+         CALL    affRep
+         BR      finVC
+conssVC: STRO    msgConss,d
+         CALL    affCons
+         CALL    cprMaxVC 
+         BREQ    finVC
+         STRO    msgReps1,d
+         CALL    affRep
+         BR      finVC
+aucCons: STRO    msgAucC,d
+finVC:   RET0
+
+;
+;Determine l'affichage 
+;lorsque le nombre le plus utilise de voyelles est inferieur a celui des consonnes
+;
+ordreCV: LDX     maxCons,d
+         LDA     maxVoy,d
+         STX     occAff,d 
+         STA     repAff,d 
+         CALL    consCV
+         STRO    msgDiff,d
+         CALL    voyCV
+         BR      suiteRes
+
+;
+;Determine l'affichage selon le nombre de consonnes
+;lorsque le nombre le plus utilise de voyelles est inferieur a celui des consonnes
+;
+consCV:  LDA     maxCons,d
+         STA     maxAff,d 
+         CALL    affOcc
+         LDA     nbCons,d
+         CPA     1,i         ;valide l'existence d'une ou de plusieurs consonnes
+         BRGT    conssCV 
+         STRO    msgCons,d
+         CALL    affCons
+         STRO    msgOcc3,d
+         BR      suiteCV
+conssCV: STRO    msgConss,d
+         CALL    affCons
+         STRO    msgOccs3,d
+         STRO    msgVirg,d
+suiteCV: RET0
+
+;
+;Determine l'affichage selon le nombre de voyelles
+;lorsque le nombre le plus utilise de voyelles est inferieur a celui des consonnes
+;
+voyCV:   LDA     maxVoy,d
+         STA     maxAff,d 
+         LDA     nbVoy,d
+         CPA     0,i         ;valide l'existence de voyelles
+         BREQ    aucVoy
+         CPA     1,i         ;valide l'existence d'une ou de plusieurs voyelles
+         BRGT    voysCV 
+         STRO    msgVoy,d
+         CALL    affVoy
+         STRO    msgRep1,d 
+         CALL    affRep
+         BR      finCV
+voysCV:  STRO    msgVoys,d
+         CALL    affVoy
+         STRO    msgReps1,d
+         CALL    affRep
+         BR      finCV
+aucVoy:  STRO    msgAucV,d
+finCV:   RET0
+
+;
+;Determine l'affichage selon le nombre d'occurrences
+;
+affOcc:  STRO    msgOcc1,d
+         DECO    occAff,d 
+         LDA     occAff,d 
+         CPA     1,i         ;valide l'existence d'une ou de plusieurs occurrences
+         BRGT    affOccs
+         STRO    msgOcc2,d
+         BR      finOcc
+affOccs: STRO    msgOccs2,d
+finOcc:  RET0
+
+;
+;Determine l'affichage selon le nombre de reprises
+;
+affRep:  DECO    repAff,d 
+         LDA     repAff,d
+         CPA     1,i         ;valide l'existence d'une ou de plusieurs reprises
+         BRGT    affReps
+         STRO    msgRep2,d
+         BR      finRep
+affReps: STRO    msgReps2,d
+finRep:  RET0
+
+;
+;Prend les index correspondant aux voyelles 
+;pour l'affichage de celles-ci
+;
+affVoy:  LDA     nbVoy,d
+         STA     nbAff,d
+         LDX     index,d
+bclAffV: LDA     tabIndV,x 
+         STA     indLettr,d 
+         CALL    cprMax
+         LDX     index,d
+         ADDX    2,i         ;index suivant du tableau
+         STX     index,d
+         CPX     10,i        ;fin du tableau
+         BRLE    bclAffV
+         CALL    reinInd
+         RET0
+
+;
+;Prend les index correspondant aux consonnes
+;pour l'affichage de celles-ci
+;
+affCons: LDA     nbCons,d
+         STA     nbAff,d
+         LDX     index,d
+bclAffC: LDA     tabIndC,x 
+         STA     indLettr,d 
+         CALL    cprMax
+         LDX     index,d
+         ADDX    2,i         ;index suivant du tableau
+         STX     index,d
+         CPX     38,i        ;fin du tableau
+         BRLE    bclAffC
+         CALL    reinInd
+         RET0
+
+;
+;Determine la lettre a afficher
+;
+cprMax:  LDX     indLettr,d 
+         LDA     tabCptL,x        
+         CPA     maxAff,d    ;valide la correspondance de la lettre la plus utilisee
+         BREQ    enumerer 
+         RET0 
+
+;
+;Enumere la lettre et determine l'affichage de ","/"et"
+;
+enumerer:LDX     indLettr,d
+         ASRX                ;calcule le code decimal de la lettre
+         ADDX    'A',i
+         STBYTEX carAff,d 
+         CHARO   carAff,d
+         LDA     nbAff,d 
+         CPA     2,i         ;valide l'affichage de ","/"et"
+         BRGT    affVirg 
+         BREQ    affEt
+         BR      finEnum
+affVirg: STRO    msgVirg,d
+         BR      finEnum
+affEt:   STRO    msgEt,d 
+finEnum: SUBA    1,i         ;compte le nombre de lettres restantes
+         STA     nbAff,d 
+         RET0
+
+;
+;Affiche le pourcentage avec decimales 
+;
+affPourc:STRO    msgPour1,d 
+         DECO    entPourc,d
+         LDA     decPourc,d
+         CPA     0,i         ;valide l'existence de la partie decimale
+         BREQ    finPct
+         CHARO   ',',i
+validDec:CPA     10,i        ;valide la valeur de la partie decimale
+         BRGE    suitePct 
+         DECO    0,i
+suitePct:DECO    decPourc,d 
+finPct:  STRO    msgPour2,d
+         RET0
+
+;
+;Reinitialise diverses variables
+;
+reinit:  LDA     0,i         ;***correction personnelle #2 après remise du TP2 : -1 à 0***
+         STA     positCar,d
+         LDA     0,i
+         STA     totVoy,d
+         STA     totLettr,d
+         STA     nbVoy,d
+         STA     nbCons,d
+         STA     maxVoy,d 
+         STA     maxCons,d
+         LDX     0,i
+reinCptA:LDA     0,i
+         STA     tabCptL,x 
+         ADDX    2,i
+         CPX     50,i 
+         BRLE    reinCptA
+         CALL    reinQuot 
+         RET0
+
+;
+;Reinitialise la variable index
+;
+reinInd: LDA     0,i
+         STA     index,d
+         RET0
+
+;
+;Reinitialise la variable quotient
+;
+reinQuot:LDA     0,i
+         STA     quotient,d
+         RET0
+
+;
+;Termine le programme
+;
+fin:     STRO    msgFin,d
+         STOP
+
+;***************************************************************************************
+; Constantes
+;***************************************************************************************
+
+entete:  .ASCII  "\n\n----------------------------------------------------\n\n\x00"
+
+msgBvn:  .ASCII  "Bienvenue à ce programme qui recherche les voyelles "
+         .ASCII  "\net les consonnes les plus utilisées parmi une chaîne "
+         .ASCII  "\nde caractères entrée.\x00"
+
+msgSol:  .ASCII  "Veuillez entrer une chaîne de caractères (ou entrez "
+         .ASCII  "\nuniquement le caractère ENTREE pour terminer):\n\n\x00"
+
+msgOcc1: .ASCII  "\nAvec \x00"
+msgOcc2: .ASCII  " occurrence, \x00"
+msgOccs2:.ASCII  " occurrences, \x00"
+
+msgVoy:  .ASCII  "la voyelle \"\x00"
+msgVoys: .ASCII  "les voyelles \"\x00"
+
+msgOcc3: .ASCII  "\" est la plus utilisée,\x00"
+msgOccs3:.ASCII  "\" sont les plus utilisées\x00"
+
+msgDiff: .ASCII  "\npar contre, \x00"
+msgMeme: .ASCII  "\net \x00"
+msgVirg: .ASCII  ", \x00"
+msgEt:   .ASCII  " et \x00"
+
+msgCons: .ASCII  "la consonne \"\x00"
+msgConss:.ASCII  "les consonnes \"\x00"
+
+msgRep1: .ASCII  "\" est utilisée à \x00"
+msgReps1:.ASCII  "\" sont utilisées à \x00"
+
+msgRep2: .ASCII  " reprise.\x00"
+msgReps2:.ASCII  " reprises.\x00"
+
+msgAucV: .ASCII  "aucune voyelle n'est utilisée.\x00"
+msgAucC: .ASCII  "aucune consonne n'est utilisée.\x00"
+msgAucCV:.ASCII  "\nAucune occurrence de consonne ou de voyelle.\x00"
+
+msgPour1:.ASCII  "\n\nLes voyelles représentent \x00"
+msgPour2:.ASCII  " % des lettres entrées.\x00"
+
+msgFin:  .ASCII  "\nFin normale du programme.\x00"
+
+;***************************************************************************************
+; Variables
+;***************************************************************************************
+
+avCar:   .BLOCK  1
+car:     .BLOCK  1
+positCar:.BLOCK  2
+
+carAff:  .BLOCK  2
+nbAff:   .BLOCK  2
+maxAff:  .BLOCK  2 
+occAff:  .BLOCK  2
+repAff:  .BLOCK  2
+
+index:   .BLOCK  2
+indLettr:.BLOCK  2
+
+nombre:  .BLOCK  2
+quotient:.BLOCK  2
+reste:   .BLOCK  2
+
+entPourc:.BLOCK  2 
+decPourc:.BLOCK  2
+
+totVoy:  .BLOCK  2
+totLettr:.BLOCK  2
+
+carVoy:  .BLOCK  2
+nbVoy:   .BLOCK  2           
+maxVoy:  .BLOCK  2               
+tabIndV: .WORD   0
+         .WORD   8
+         .WORD   16
+         .WORD   28
+         .WORD   40
+         .WORD   48
+
+carCons: .BLOCK  2
+nbCons:  .BLOCK  2
+maxCons: .BLOCK  2
+tabIndC: .WORD   2
+         .WORD   4
+         .WORD   6
+         .WORD   10
+         .WORD   12
+         .WORD   14
+         .WORD   18
+         .WORD   20
+         .WORD   22
+         .WORD   24
+         .WORD   26
+         .WORD   30
+         .WORD   32
+         .WORD   34
+         .WORD   36
+         .WORD   38
+         .WORD   42
+         .WORD   44
+         .WORD   46
+         .WORD   50
+
+tabCptL: .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2       
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+         .BLOCK  2
+.END
